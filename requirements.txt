@@ -1,19 +1,30 @@
-
+# --- Core & Async Execution ---
 httpx
-cloudscraper
-aiofiles
-certifi
-uvloop
 ujson
+psutil
+aiofiles
+uvloop
 retrying
-colorama
-beautifulsoup4
-tqdm
+certifi
+
+# --- Data Analysis & Machine Learning ---
 pandas
 numpy
 lightgbm
 scikit-learn
 joblib
+
+# --- Web & Network Security ---
+cloudscraper
+beautifulsoup4
+python-whois
+dnspython
+aiodns
+wafw00f
+sublist3r
+DrissionPage
+
+# --- File Analysis & Deep Mining ---
 rarfile
 PyPDF2
 openpyxl
@@ -22,16 +33,16 @@ pytesseract
 python-docx
 striprtf
 pdfminer.six
-whois
-dnspython
-aiodns
 pyaxmlparser
-wafw00f
-sublist3r
+
+# --- Exploitation & Security Tools ---
+pwntools
+PyJWT
 sqlparse
-pyjwt
 paramiko
+
+# --- Validation & Utilities ---
 phonenumbers
 email-validator
-pwntools
-DrissionPage
+tqdm
+colorama
