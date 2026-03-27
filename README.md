@@ -1,5 +1,5 @@
 # ⚡
-### Ultimate Security Scanner & Deep File Miner
+### Ultimate Net-Vulture-Elite & Deep File Miner
 
 A sophisticated, all-in-one Python security tool designed for Open Source Intelligence (OSINT), Android Application Analysis (APK), and Binary Exploitation Research (Pwn Analysis).
 
