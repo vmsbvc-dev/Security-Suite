@@ -1,4 +1,7 @@
-# ⚡
+![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python)
+![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+![Stars](https://img.shields.io/github/stars/vmsbvc-dev/Net-Vulture-Elite?style=for-the-badge)
+# ⚡Net-Vulture-Elite⚡
 ### Ultimate Net-Vulture-Elite & Deep File Miner
 
 A sophisticated, all-in-one Python security tool designed for Open Source Intelligence (OSINT), Android Application Analysis (APK), and Binary Exploitation Research (Pwn Analysis).
