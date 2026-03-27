@@ -1,15 +1,12 @@
 # -------------------------------------------------------------------------
-# HASSAN AI VAULT - v110 (Ultimate Edition)
+# HASSAN AI VAULT - v111 (Elite Edition)
 # -------------------------------------------------------------------------
-# DISCLAIMER:
-# This tool is developed for educational purposes and ethical hacking only.
-# Using this tool against targets without prior consent is illegal.
-# The developer (Hassan) assumes no liability for any misuse or damage.
+# DISCLAIMER: Educational purposes & ethical hacking only.
 # -------------------------------------------------------------------------
 
 import os, math, asyncio, httpx, re, warnings, random, base64, ujson, zipfile, psutil, time, socket, ipaddress, csv, hashlib
 
-# Mute Deprecation Warnings (TripleDES/Paramiko errors)
+# Mute Deprecation Warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore")
 
@@ -77,6 +74,8 @@ KEY_MEGA_CSV = os.path.join(BASE_PATH, "key_results.csv")
 IP_MEGA_CSV = os.path.join(BASE_PATH, "ip_results.csv")
 APK_HASH_CSV = os.path.join(BASE_PATH, "apk_hashes.csv")
 
+EXT_LIST = ['.js', '.json', '.env', '.xml', '.txt', '.conf', '.log', '.zip', '.sql', '.bak', '.config', '.yaml', '.yml', '.py', '.sh', '.key', '.pem', '.aspx', '.asp', '.jsp', '.php', '.db', '.sqlite']
+
 for d in [DOWNLOAD_DIR]:
     if not os.path.exists(d): os.makedirs(d, exist_ok=True)
 
@@ -94,75 +93,120 @@ class HassanAI_Vault:
         self.patterns = {
             "Google_Key": r'AIza[0-9A-Za-z-_]{35}',
             "Firebase": r'https://[a-z0-9.-]+\.firebaseio\.com',
+            "AWS_Key": r'AKIA[0-9A-Z]{16}',
+            "FB_Token": r'EAACEdEose0cBA[A-Za-z0-9]+',
             "JWT_Token": r'ey[a-zA-Z0-9]{50,}\.ey[a-zA-Z0-9]{50,}\.[a-zA-Z0-9_-]+',
             "Email": r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
             "Phone": r'\+?[1-9]\d{1,14}',
+            "IP_Addr": r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
             "SQL_Query": r'(SELECT\s+.*\s+FROM\s+.*|INSERT\s+INTO\s+.*|UPDATE\s+.*SET\s+.*)',
-            "Sensitive_Path": r'/(?:config|admin|backup|v1|api|debug|env)/[a-zA-Z0-9\._/-]+',
-            "URL_Hardcoded": r'https?://[^\s"\'>]+'
+            "Sensitive_Path": r'/(?:config|admin|backup|v1|api|debug|env)/[a-zA-Z0-9\._/-]+'
         }
         self._prepare_csvs()
 
     def _prepare_csvs(self):
-        files_headers = [
-            (KEY_MEGA_CSV, ['Timestamp', 'Type', 'Data', 'Source']),
-            (IP_MEGA_CSV, ['Timestamp', 'IP', 'Type', 'Source']),
-            (APK_HASH_CSV, ['Package_Name', 'Last_Hash', 'Last_Seen'])
-        ]
+        files_headers = [(KEY_MEGA_CSV, ['Timestamp', 'Type', 'Data', 'Source']), (IP_MEGA_CSV, ['Timestamp', 'IP', 'Type', 'Source']), (APK_HASH_CSV, ['Package_Name', 'Last_Hash', 'Last_Seen'])]
         for file, headers in files_headers:
             if not os.path.exists(file):
-                with open(file, 'w', newline='', encoding='utf-8') as f:
-                    csv.writer(f).writerow(headers)
+                with open(file, 'w', newline='', encoding='utf-8') as f: csv.writer(f).writerow(headers)
 
-    async def pwn_binary_analysis(self, file_path):
-        if not PWN_AVAILABLE: return
+    # --- [New Suggestion for Pwn Path [b]] ---
+    async def deep_binary_strings(self, file_path):
+        """اكتشاف النصوص الحساسة داخل ملفات الـ Binary"""
+        print(f"   🔍 {P}[STRINGS-MINING]{RS} Hunting sensitive text...")
         try:
-            print(f"   🛡️ {B}[PWN-ANALYSIS]{RS} Checking Binary: {os.path.basename(file_path)}")
-            context.arch = 'arm' 
-            elf = ELF(file_path, checksec=False)
-            
-            stats = {
-                "NX (No-Execute)": elf.nx,
-                "Stack Canary": elf.canary,
-                "PIE (Position Independent)": elf.pie,
-                "RWX Segments": elf.rwx
-            }
-            
-            for k, v in stats.items():
-                status = f"{G}Enabled" if v else f"{R}Disabled"
-                print(f"      - {k}: {status}{RS}")
-                await self.save_key_to_mega("PWN_Check", f"{k}:{v}", file_path)
+            with open(file_path, 'rb') as f:
+                content = f.read()
+                found_strings = re.findall(rb"[\x20-\x7E]{6,}", content)
+                for s in found_strings[:20]:
+                    decoded_s = s.decode(errors='ignore')
+                    if any(x in decoded_s.lower() for x in ['pass', 'key', 'admin', 'http', 'mysql']):
+                        print(f"      🔥 {G}[SENSITIVE-STRING]{RS} {decoded_s}")
+                        await self.save_key_to_mega("Pwn_String", decoded_s, file_path)
         except: pass
 
-    async def check_apk_integrity(self, pkg_name, current_hash):
-        df = pd.read_csv(APK_HASH_CSV)
-        if pkg_name in df['Package_Name'].values:
-            old_hash = df[df['Package_Name'] == pkg_name]['Last_Hash'].values[0]
-            if old_hash != current_hash:
-                print(f"\n {R}[!!!] WARNING: APK INTEGRITY VIOLATION [!!!]{RS}")
-                df.loc[df['Package_Name'] == pkg_name, ['Last_Hash', 'Last_Seen']] = [current_hash, datetime.now().isoformat()]
-                df.to_csv(APK_HASH_CSV, index=False)
-                return False
-        else:
-            new_data = pd.DataFrame([{'Package_Name': pkg_name, 'Last_Hash': current_hash, 'Last_Seen': datetime.now().isoformat()}])
-            new_data.to_csv(APK_HASH_CSV, mode='a', header=False, index=False)
-        return True
+    async def pwn_binary_analysis(self, file_path):
+        if not PWN_AVAILABLE: 
+            print(f" {R}[!] Pwntools not installed.{RS}")
+            return
+        try:
+            print(f"\n   🛡️ {B}[PWN-ANALYSIS]{RS} Analyzing: {os.path.basename(file_path)}")
+            await self.deep_binary_strings(file_path)
+            
+            context.clear()
+            context.os = 'android'
+            context.arch = 'arm64'
+            
+            elf = ELF(file_path, checksec=False)
+            has_rwx = any(seg.header.p_flags & 7 == 7 for seg in elf.segments)
+            
+            # مصفوفة النتائج مع التفسير لربطها بوضع [x]
+            analysis_data = [
+                ("RELRO", elf.relro, {
+                    2: (f"{G}Full RELRO", "✅ Safe from GOT overwrite."),
+                    1: (f"{Y}Partial RELRO", "⚠️ Potential GOT risk."),
+                    0: (f"{R}No RELRO", "🔥 GOT Hijacking Possible!")
+                }),
+                ("Stack Canary", 1 if elf.canary else 0, {
+                    1: (f"{G}Enabled", "✅ Detects Overflows."),
+                    0: (f"{R}No Canary", "🔥 Vulnerable to Buffer Overflow.")
+                }),
+                ("NX (No-Execute)", 1 if elf.nx else 0, {
+                    1: (f"{G}Enabled", "✅ Stack is non-executable."),
+                    0: (f"{R}Disabled", "🔥 Code can run from Stack!")
+                }),
+                ("PIE (ASLR)", 1 if elf.pie else 0, {
+                    1: (f"{G}Enabled", "✅ Random memory addresses."),
+                    0: (f"{R}No PIE", "🔥 Fixed addresses (Easy ROP).")
+                })
+            ]
+
+            print(f"   {'-'*65}")
+            critical_vuln = False 
+            for label, value, mapping in analysis_data:
+                status, hint = mapping.get(value, (f"{R}Unknown", ""))
+                print(f"   {C}{label.ljust(18)}: {status.ljust(25)} {RS}| {P}{hint}{RS}")
+                if "🔥" in hint: critical_vuln = True 
+
+            rwx_status = f"{R}Found (Critical!)" if has_rwx else f"{G}Not Found"
+            if has_rwx: critical_vuln = True
+            print(f"   {C}{'RWX Segments'.ljust(18)}: {rwx_status.ljust(25)} {RS}| {P}{'Dangerous memory!' if has_rwx else 'Safe.'}{RS}")
+            print(f"   {'-'*65}\n")
+
+            # الاقتراح الذكي: الانتقال لـ [x] في حال وجود ثغرات
+            if critical_vuln:
+                print(f"   ⚠️ {R}[CRITICAL VULNERABILITY DETECTED]{RS}")
+                choice = input(f"   {Y}Do you want to switch to [x] mode for deep exploit scanning? (y/n): {RS}").lower()
+                if choice == 'y':
+                    print(f"   🚀 {G}Launching Deep Exploit Scan [x]...{RS}")
+                    await self.start() 
+
+            for label, value, _ in analysis_data:
+                await self.save_key_to_mega("PWN_Check", f"{label}:{value}", file_path)
+        except Exception as e: 
+            print(f" {R}[!] Pwn Analysis Error: {e}{RS}")
+
+    async def download_file(self, file_url):
+        if file_url in self.downloaded_files: return
+        self.downloaded_files.add(file_url)
+        try:
+            loop = asyncio.get_event_loop()
+            r = await loop.run_in_executor(None, lambda: self.scraper.get(file_url, timeout=10))
+            if r.status_code == 200:
+                fname = f"{int(time.time())}_{file_url.split('/')[-1].split('?')[0]}"
+                async with aiofiles.open(os.path.join(DOWNLOAD_DIR, fname), 'wb') as f: await f.write(r.content)
+                print(f"   📥 {G}[DOWNLOADED]{RS} {fname}")
+                await self.deep_file_miner(os.path.join(DOWNLOAD_DIR, fname), file_url)
+        except: pass
 
     async def analyze_apk(self, target_input):
         if target_input in self.downloaded_files: return
         self.downloaded_files.add(target_input)
-        
         filename = ""
         is_local = os.path.exists(target_input)
-
         try:
-            if is_local:
-                filename = target_input
-                print(f"   📂 {G}[LOCAL-FILE]{RS} Processing: {os.path.basename(filename)}")
+            if is_local: filename = target_input
             else:
-                if not target_input.startswith(('http://', 'https://')):
-                    print(f" {R}[!] Error: Invalid URL or Path.{RS}")
-                    return
                 filename = os.path.join(DOWNLOAD_DIR, target_input.split('/')[-1])
                 if not filename.endswith('.apk'): filename += ".apk"
                 print(f"   📥 {Y}[APK-DOWNLOAD]{RS} Fetching...")
@@ -170,35 +214,9 @@ class HassanAI_Vault:
                     resp = await client.get(target_input)
                     if resp.status_code == 200:
                         async with aiofiles.open(filename, "wb") as f: await f.write(resp.content)
-                    else: return
-
-            with open(filename, "rb") as f:
-                file_hash = hashlib.md5(f.read()).hexdigest()
-
             apk_obj = APK(filename)
-            pkg_name = apk_obj.package
-            await self.check_apk_integrity(pkg_name, file_hash)
-
-            info = f"App: {apk_obj.get_app_name()} | Pkg: {pkg_name} | Hash: {file_hash}"
-            print(f"   📱 {G}[APK-FOUND]{RS} {info}")
-            
-            perms = apk_obj.get_permissions()
-            print(f"   🔐 {P}[PERMISSIONS]{RS} Total: {len(perms)}")
-            
-            with zipfile.ZipFile(filename, 'r') as z:
-                libs = [name for name in z.namelist() if name.endswith('.so')]
-                if libs:
-                    print(f"   📦 {B}[NATIVE-LIBS]{RS} Found {len(libs)} .so files")
-                    sample_lib = os.path.join(DOWNLOAD_DIR, "temp_sample.so")
-                    with z.open(libs[0]) as source, open(sample_lib, "wb") as target:
-                        target.write(source.read())
-                    await self.pwn_binary_analysis(sample_lib)
-                    os.remove(sample_lib)
-
-            print(f"   🔗 {C}[EXTRACTING]{RS} Searching for endpoints...")
+            print(f"   📱 {G}[APK-FOUND]{RS} {apk_obj.package}")
             await self.deep_file_miner(filename, target_input)
-            
-            await self.save_key_to_mega("APK_Scan", info, target_input)
             if not is_local: os.remove(filename)
         except Exception as e: print(f" {R}[APK-ERROR]{RS} {e}")
 
@@ -217,13 +235,14 @@ class HassanAI_Vault:
                 with zipfile.ZipFile(file_path, 'r') as z:
                     text_content = " ".join(z.namelist())
                     for name in z.namelist()[:30]: 
-                        if name.endswith(('.xml', '.json', '.txt')):
+                        if name.endswith(('.xml', '.json', '.txt', '.env')):
                             with z.open(name) as f: text_content += f.read().decode(errors='ignore')
+            elif ext in ['.js', '.html', '.txt', '.env', '.json']:
+                async with aiofiles.open(file_path, 'r', errors='ignore') as f: text_content = await f.read()
             if text_content:
                 for name, pattern in self.patterns.items():
                     matches = re.findall(pattern, text_content)
-                    for m in set(matches):
-                        await self.save_key_to_mega(f"InFile_{name}", m, url)
+                    for m in set(matches): await self.save_key_to_mega(f"InFile_{name}", m, url)
         except: pass
 
     async def subdomain_enumeration(self):
@@ -234,36 +253,76 @@ class HassanAI_Vault:
                 for s in subs: self.queue.put_nowait(f"https://{s}")
         except: pass
 
+    async def get_banner(self, ip, port):
+        """سحب معلومات الخدمة (Banner Grabbing)"""
+        try:
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(ip, port), timeout=2)
+            if port == 80:
+                writer.write(b"HEAD / HTTP/1.1\r\nHost: " + self.domain.encode() + b"\r\n\r\n")
+                await writer.drain()
+            banner = await asyncio.wait_for(reader.read(100), timeout=2)
+            writer.close()
+            await writer.wait_closed()
+            return banner.decode(errors='ignore').strip()
+        except: return None
+
     async def network_scan(self):
-        print(f" {B}[NET-SCAN]{RS} Probing ports for: {self.domain}")
+        print(f" {B}[NET-SCAN]{RS} Probing: {self.domain}")
         try:
             target_ip = socket.gethostbyname(self.domain)
-            common_ports = [21, 22, 23, 80, 443, 3306, 8080]
-            for port in common_ports:
+            print(f"   📍 {C}[IP]{RS} {target_ip}")
+            try:
+                w = whois.whois(self.domain)
+                print(f"   🏢 {G}[ORG]{RS} {w.org or 'Unknown'}")
+            except: pass
+
+            ports = {21: "FTP", 22: "SSH", 80: "HTTP", 443: "HTTPS", 3306: "MySQL"}
+            for port, service in ports.items():
                 try:
-                    conn = asyncio.open_connection(target_ip, port)
-                    await asyncio.wait_for(conn, timeout=1.0)
-                    print(f"   🔥 {G}[PORT-OPEN]{RS} {port}")
+                    reader, writer = await asyncio.wait_for(asyncio.open_connection(target_ip, port), timeout=1.5)
+                    print(f"   🔥 {G}[PORT-OPEN]{RS} {port} ({service})")
+                    banner = await self.get_banner(target_ip, port)
+                    if banner: print(f"      📝 {Y}[BANNER]{RS} {banner[:50]}...")
+                    writer.close()
+                    await writer.wait_closed()
                 except: continue
-        except: pass
+                
+            if target_ip in ["127.0.0.1", "localhost"]:
+                print(f"\n {Y}[LOCAL-MGMT]{RS} You are scanning yourself.")
+                choice = input(f" {C}Do you want to block a port? (Enter port number or 'n'): {RS}").strip().lower()
+                if choice.isdigit():
+                    os.system(f"su -c 'iptables -A INPUT -p tcp --dport {choice} -j DROP'")
+                    print(f" {R}[CLOSED]{RS} Port {choice} has been blocked.")
+        except Exception as e: print(f" {R}[NET-ERROR]{RS} {e}")
 
     async def worker(self, sem):
         while True:
             url = await self.queue.get()
-            if url in self.visited_urls: self.queue.task_done(); continue
+            if url in self.visited_urls or len(self.visited_urls) > 3000:
+                self.queue.task_done(); continue
             self.visited_urls.add(url)
             async with sem:
                 res = await self.fetch_page(url)
                 if res and res[0]:
+                    print(f" {C}[SCAN]{RS} {url[:60]}")
+                    for name, p in self.patterns.items():
+                        matches = re.findall(p, res[0])
+                        for m in set(matches):
+                            print(f"   🔥 {G}[{name}]{RS} Found!")
+                            await self.save_key_to_mega(name, m, url)
                     links = re.findall(r'(?:href|src|url)=["\'](.*?)["\']', res[0])
                     for link in set(links):
-                        if self.domain.split('.')[0] in link: self.queue.put_nowait(urljoin(url, link))
+                        full_url = urljoin(url, link)
+                        if not full_url.startswith('http') or any(x in full_url for x in ['#', 'javascript']): continue
+                        file_ext = os.path.splitext(full_url.split('?')[0])[1].lower()
+                        if file_ext in EXT_LIST: asyncio.create_task(self.download_file(full_url))
+                        elif self.domain in full_url: self.queue.put_nowait(full_url)
             self.queue.task_done()
 
     async def start(self):
-        print(f"\n{P}⚡ HASSAN AI V110: ULTIMATE EDITION ⚡{RS}")
+        print(f"\n{P}⚡ HASSAN AI V111: ELITE EDITION ⚡{RS}")
         await self.subdomain_enumeration()
-        self.queue.put_nowait(self.target + "/")
+        for p in ["/", "/.env", "/robots.txt", "/config.php"]: self.queue.put_nowait(self.target + p)
         sem = asyncio.Semaphore(15) 
         workers = [asyncio.create_task(self.worker(sem)) for _ in range(8)]
         await self.queue.join()
@@ -280,40 +339,27 @@ class HassanAI_Vault:
 
 async def main_controller():
     print(f"\n{Y}[x] Domain | [k] APK | [m] Network | [b] Pwn Analysis{RS}")
-    mode = input(f"{C}Select Mode: {RS}").strip().lower()
+    raw_input = input(f"{C}Select Mode: {RS}").strip().lower().split()
+    mode = raw_input[-1] if raw_input else ""
     
-    targets = []
-
-    if mode == 'b':
-        path = input(f"{P}Binary File Path: {RS}").strip()
-        if os.path.exists(path):
-            vault = HassanAI_Vault("local.host")
-            await vault.pwn_binary_analysis(path)
-        return
-
     if mode == 'x':
-        t = input(f"{G}Target (example.com): {RS}").strip()
-        if t: targets.append(t)
-
+        t_input = input(f"{G}Target (example.com): {RS}").strip().split()
+        t = t_input[-1] if t_input else ""
+        if t: await HassanAI_Vault(t).start()
     elif mode == 'k':
-        t = input(f"{P}APK Path or Link: {RS}").strip().rstrip('/')
-        if t:
-            vault = HassanAI_Vault(t)
-            await vault.analyze_apk(t)
-            return
-
+        t_input = input(f"{P}APK Path or Link: {RS}").strip().split()
+        t = t_input[-1] if t_input else ""
+        if t: await HassanAI_Vault(t).analyze_apk(t)
     elif mode == 'm':
-        t = input(f"{B}Network Target: {RS}").strip()
-        if t:
-            vault = HassanAI_Vault(t)
-            await vault.network_scan()
-            return
-            
-    for t in targets:
-        print(f"\n {C}🚀 Starting Scan for: {t}{RS}")
-        vault = HassanAI_Vault(t)
-        await vault.start()
+        t_input = input(f"{B}Network Target: {RS}").strip().split()
+        t = t_input[-1] if t_input else ""
+        if t: await HassanAI_Vault(t).network_scan()
+    elif mode == 'b':
+        p_input = input(f"{P}Binary Path: {RS}").strip().split()
+        path = p_input[-1] if p_input else ""
+        if os.path.exists(path): await HassanAI_Vault("local").pwn_binary_analysis(path)
 
 if __name__ == "__main__":
     try: asyncio.run(main_controller())
     except KeyboardInterrupt: print(f"\n{R}[!] Stopped.{RS}")
+    
