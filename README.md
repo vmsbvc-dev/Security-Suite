@@ -1,6 +1,7 @@
 ![Python](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=python)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 ![Stars](https://img.shields.io/github/stars/vmsbvc-dev/Net-Vulture-Elite?style=for-the-badge)
+![Visitors](https://api.visitorbadge.io/api/combined?path=https%3A%2F%2Fgithub.com%2Fvmsbvc-dev%2FNet-Vulture-Elite&labelColor=%2337d67a&countColor=%23263238&style=for-the-badge)
 # ⚡Net-Vulture-Elite⚡
 ### Ultimate Net-Vulture-Elite & Deep File Miner
 
